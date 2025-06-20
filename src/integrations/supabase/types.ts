@@ -9,297 +9,18 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      orders: {
-        Row: {
-          created_at: string | null
-          id: string
-          price: number
-          product_id: string
-          product_name: string
-          special_requests: string | null
-          status: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          price: number
-          product_id: string
-          product_name: string
-          special_requests?: string | null
-          status?: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          price?: number
-          product_id?: string
-          product_name?: string
-          special_requests?: string | null
-          status?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orders_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      products: {
-        Row: {
-          available: boolean | null
-          category: string
-          created_at: string | null
-          description: string | null
-          features: string[] | null
-          id: string
-          image_url: string | null
-          name: string
-          price: number
-          updated_at: string | null
-        }
-        Insert: {
-          available?: boolean | null
-          category: string
-          created_at?: string | null
-          description?: string | null
-          features?: string[] | null
-          id?: string
-          image_url?: string | null
-          name: string
-          price: number
-          updated_at?: string | null
-        }
-        Update: {
-          available?: boolean | null
-          category?: string
-          created_at?: string | null
-          description?: string | null
-          features?: string[] | null
-          id?: string
-          image_url?: string | null
-          name?: string
-          price?: number
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      reviews: {
-        Row: {
-          comment: string
-          created_at: string | null
-          id: string
-          order_id: string
-          product_name: string
-          rating: number
-          user_id: string
-        }
-        Insert: {
-          comment: string
-          created_at?: string | null
-          id?: string
-          order_id: string
-          product_name: string
-          rating: number
-          user_id: string
-        }
-        Update: {
-          comment?: string
-          created_at?: string | null
-          id?: string
-          order_id?: string
-          product_name?: string
-          rating?: number
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reviews_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reviews_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ticket_replies: {
+      "botforge db": {
         Row: {
           created_at: string
-          id: string
-          is_admin_reply: boolean
-          message: string
-          ticket_id: string
-          user_id: string
+          id: number
         }
         Insert: {
           created_at?: string
-          id?: string
-          is_admin_reply?: boolean
-          message: string
-          ticket_id: string
-          user_id: string
+          id?: number
         }
         Update: {
           created_at?: string
-          id?: string
-          is_admin_reply?: boolean
-          message?: string
-          ticket_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ticket_replies_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      tickets: {
-        Row: {
-          category: Database["public"]["Enums"]["ticket_category"]
-          close_reason: string | null
-          closed_at: string | null
-          closed_by: string | null
-          created_at: string
-          description: string
-          id: string
-          product_id: string | null
-          status: Database["public"]["Enums"]["ticket_status"]
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          category: Database["public"]["Enums"]["ticket_category"]
-          close_reason?: string | null
-          closed_at?: string | null
-          closed_by?: string | null
-          created_at?: string
-          description: string
-          id?: string
-          product_id?: string | null
-          status?: Database["public"]["Enums"]["ticket_status"]
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          category?: Database["public"]["Enums"]["ticket_category"]
-          close_reason?: string | null
-          closed_at?: string | null
-          closed_by?: string | null
-          created_at?: string
-          description?: string
-          id?: string
-          product_id?: string | null
-          status?: Database["public"]["Enums"]["ticket_status"]
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tickets_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      updates: {
-        Row: {
-          author_id: string
-          content: string
-          created_at: string | null
-          id: string
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          author_id: string
-          content: string
-          created_at?: string | null
-          id?: string
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          author_id?: string
-          content?: string
-          created_at?: string | null
-          id?: string
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "updates_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      users: {
-        Row: {
-          avatar_url: string | null
-          banned: boolean | null
-          created_at: string | null
-          discord_id: string | null
-          email: string
-          id: string
-          role: string
-          updated_at: string | null
-          username: string
-        }
-        Insert: {
-          avatar_url?: string | null
-          banned?: boolean | null
-          created_at?: string | null
-          discord_id?: string | null
-          email: string
-          id: string
-          role?: string
-          updated_at?: string | null
-          username: string
-        }
-        Update: {
-          avatar_url?: string | null
-          banned?: boolean | null
-          created_at?: string | null
-          discord_id?: string | null
-          email?: string
-          id?: string
-          role?: string
-          updated_at?: string | null
-          username?: string
+          id?: number
         }
         Relationships: []
       }
@@ -308,14 +29,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_current_user_role: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      [_ in never]: never
     }
     Enums: {
-      ticket_category: "Account" | "Orders" | "Other"
-      ticket_status: "open" | "closed"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -430,9 +147,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      ticket_category: ["Account", "Orders", "Other"],
-      ticket_status: ["open", "closed"],
-    },
+    Enums: {},
   },
 } as const
