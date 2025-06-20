@@ -8,28 +8,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/hooks/use-toast';
 import { Edit, ShieldCheck, Settings, Hammer, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useUsers } from '@/hooks/useUsers';
 
-const UserManager = () => {
-  const { user, updateUserRole, adminChangeUserInfo, unbanUser } = useAuth();
-  const { users, loading, refreshUsers } = useUsers();
+interface UserManagerProps {
+  users: any[];
+  setUsers: (users: any[]) => void;
+  user: any;
+  updateUserRole: (userId: string, newRole: string) => void;
+  adminChangeUserInfo: (userId: string, username: string, email: string) => void;
+  adminChangePassword: (userId: string, newPassword: string) => void;
+  getAllUsers: () => any[];
+}
+
+const UserManager = ({ 
+  users, 
+  setUsers, 
+  user, 
+  updateUserRole, 
+  adminChangeUserInfo, 
+  adminChangePassword,
+  getAllUsers 
+}: UserManagerProps) => {
   const [editingUser, setEditingUser] = useState<{[key: string]: {username: string, email: string}}>({});
+  const [newPasswords, setNewPasswords] = useState<{[key: string]: string}>({});
+  const { unbanUser } = useAuth();
 
-  const handleUserRoleChange = async (userId: string, newRole: string) => {
-    await updateUserRole(userId, newRole);
-    refreshUsers();
+  const handleUserRoleChange = (userId: string, newRole: string) => {
+    updateUserRole(userId, newRole);
+    setUsers(getAllUsers());
     toast({
       title: "Role Updated",
       description: "User role has been updated successfully.",
     });
   };
 
-  const handleUserEdit = async (userId: string) => {
+  const handleUserEdit = (userId: string) => {
     const userInfo = editingUser[userId];
     if (!userInfo) return;
     
-    await adminChangeUserInfo(userId, userInfo.username, userInfo.email);
-    refreshUsers();
+    adminChangeUserInfo(userId, userInfo.username, userInfo.email);
+    setUsers(getAllUsers());
     setEditingUser({ ...editingUser, [userId]: { username: '', email: '' } });
     
     toast({
@@ -38,9 +55,22 @@ const UserManager = () => {
     });
   };
 
-  const handleUnbanUser = async (userId: string) => {
-    await unbanUser(userId);
-    refreshUsers();
+  const handlePasswordReset = (userId: string) => {
+    const newPassword = newPasswords[userId];
+    if (!newPassword) return;
+    
+    adminChangePassword(userId, newPassword);
+    setNewPasswords({ ...newPasswords, [userId]: '' });
+    
+    toast({
+      title: "Password Updated",
+      description: "User password has been updated successfully.",
+    });
+  };
+
+  const handleUnbanUser = (userId: string) => {
+    unbanUser(userId);
+    setUsers(getAllUsers());
     toast({
       title: "User Unbanned",
       description: "User has been unbanned successfully.",
@@ -95,16 +125,6 @@ const UserManager = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Card className="bg-gray-800/50 backdrop-blur-sm border-blue-500/20 shadow-xl">
-        <CardContent className="p-8 text-center">
-          <p className="text-blue-300">Loading users...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="bg-gray-800/50 backdrop-blur-sm border-blue-500/20 shadow-xl">
       <CardHeader>
@@ -119,14 +139,18 @@ const UserManager = () => {
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     {getRoleDisplay(usr.role, usr.username)}
+                    {usr.banned && <Badge variant="destructive" className="bg-red-500/20 text-red-300 border border-red-500/50">BANNED</Badge>}
                   </div>
                   <p className="text-blue-300 text-sm">{usr.email}</p>
-                  <p className="text-blue-400/70 text-sm">Joined: {new Date(usr.created_at).toLocaleDateString()}</p>
-                  <p className="text-blue-400/70 text-sm">User ID: {usr.id}</p>
+                  {usr.discordId && (
+                    <p className="text-blue-300 text-sm">Discord ID: {usr.discordId}</p>
+                  )}
+                  <p className="text-blue-400/70 text-sm">Joined: {new Date(usr.createdAt).toLocaleDateString()}</p>
+                  <p className="text-blue-400/70 text-sm">User ID: {(usr.id)}</p>
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  {usr.role !== 'root' && (user?.role === 'owner' || user?.role === 'root') && (
+                  {usr.role !== 'root' && (user.role === 'owner' || user.role === 'root') && (
                     <>
                       <Select
                         value={usr.role}
@@ -140,7 +164,7 @@ const UserManager = () => {
                           <SelectItem value="customer">Customer</SelectItem>
                           <SelectItem value="manager">Manager</SelectItem>
                           <SelectItem value="developer">Developer</SelectItem>
-                          {user?.role === 'root' && <SelectItem value="owner">Owner</SelectItem>}
+                          {user.role === 'root' && <SelectItem value="owner">Owner</SelectItem>}
                         </SelectContent>
                       </Select>
                       
@@ -172,17 +196,40 @@ const UserManager = () => {
                           <Edit className="h-3 w-3" />
                         </Button>
                       </div>
+                      
+                      <div className="flex items-center space-x-1">
+                        <Input
+                          type="password"
+                          placeholder="New password"
+                          value={newPasswords[usr.id] || ''}
+                          onChange={(e) => setNewPasswords({ ...newPasswords, [usr.id]: e.target.value })}
+                          className="bg-gray-700/50 backdrop-blur-sm border-blue-500/30 text-white w-24 h-8 text-xs shadow-lg"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => handlePasswordReset(usr.id)}
+                          disabled={!newPasswords[usr.id]}
+                          className="bg-blue-600 hover:bg-blue-700 h-8 px-2 shadow-lg"
+                        >
+                          Reset
+                        </Button>
+                      </div>
+
+                      {usr.banned && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleUnbanUser(usr.id)}
+                          className="bg-blue-600 hover:bg-blue-700 h-8 px-2 shadow-lg"
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
               </div>
             </div>
           ))}
-          {users.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-400">No users found. Users will appear here after they register.</p>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>

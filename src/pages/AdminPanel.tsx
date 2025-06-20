@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -25,6 +26,7 @@ const AdminPanel = () => {
   // State variables
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [updates, setUpdates] = useState([]);
 
@@ -37,6 +39,7 @@ const AdminPanel = () => {
     // Load data
     const storedProducts = JSON.parse(localStorage.getItem('botforge_products') || '[]');
     const storedOrders = JSON.parse(localStorage.getItem('botforge_orders') || '[]');
+    const storedUsers = getAllUsers();
     const storedReviews = JSON.parse(localStorage.getItem('botforge_reviews') || '[]');
     const storedUpdates = JSON.parse(localStorage.getItem('botforge_updates') || '[]');
     
@@ -44,13 +47,14 @@ const AdminPanel = () => {
     setOrders(storedOrders.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ));
+    setUsers(storedUsers);
     setReviews(storedReviews.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ));
     setUpdates(storedUpdates.sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     ));
-  }, [user, navigate]);
+  }, [user, navigate, getAllUsers]);
 
   if (!user || (user.role !== 'owner' && user.role !== 'developer' && user.role !== 'manager' && user.role !== 'root')) {
     return null;
@@ -152,7 +156,15 @@ const AdminPanel = () => {
 
             {tabs.includes("users") && (
               <TabsContent value="users">
-                <UserManager />
+                <UserManager 
+                  users={users}
+                  setUsers={setUsers}
+                  user={user}
+                  updateUserRole={updateUserRole}
+                  adminChangeUserInfo={adminChangeUserInfo}
+                  adminChangePassword={adminChangePassword}
+                  getAllUsers={getAllUsers}
+                />
               </TabsContent>
             )}
 
