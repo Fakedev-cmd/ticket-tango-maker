@@ -1,6 +1,7 @@
 
 import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 export interface User {
   id: string;
@@ -15,6 +16,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, email: string, password: string, discordId: string) => Promise<boolean>;
   logout: () => void;
@@ -34,44 +36,87 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 const defaultOwners = [
-  { username: 'Emanuele', password: 'raccu123' },
-  { username: 'Salisphere', password: 'toto123' }
+  { username: 'Emanuele', email: 'emanuele@botforge.com', password: 'raccu123' },
+  { username: 'Salisphere', email: 'salisphere@botforge.com', password: 'toto123' }
 ];
 
 const rootAccount = {
   username: 'root',
+  email: 'root@botforge.com',
   password: 'ninniannavincenzoalessia29102009'
 };
 
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = React.useState<User | null>(null);
+  const [session, setSession] = React.useState<Session | null>(null);
 
   React.useEffect(() => {
-    const storedUser = localStorage.getItem('botforge_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      setSession(session);
+      
+      if (session?.user) {
+        // Fetch user data from our custom users table
+        try {
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', session.user.email)
+            .maybeSingle();
 
-    // Initialize default accounts if not exists
+          if (error) {
+            console.error('Error fetching user data:', error);
+            return;
+          }
+
+          if (userData) {
+            const userWithoutPassword = {
+              id: userData.id,
+              username: userData.username,
+              email: userData.email,
+              role: userData.role as any,
+              createdAt: userData.created_at,
+              avatar_url: userData.avatar_url
+            };
+            setUser(userWithoutPassword);
+          }
+        } catch (error) {
+          console.error('Error in auth state change:', error);
+        }
+      } else {
+        setUser(null);
+      }
+    });
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Initialize default accounts in localStorage for fallback
+    initializeDefaultAccounts();
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const initializeDefaultAccounts = () => {
     const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
     if (users.length === 0) {
       const initialUsers = [
-        // Root account
         {
           id: 'root-0',
           username: rootAccount.username,
-          email: 'root@botforge.com',
+          email: rootAccount.email,
           password: rootAccount.password,
           role: 'root' as const,
           createdAt: new Date().toISOString(),
           discordId: 'root_discord_id'
         },
-        // Default owners
         ...defaultOwners.map((owner, index) => ({
           id: `owner-${index + 1}`,
           username: owner.username,
-          email: `${owner.username.toLowerCase()}@botforge.com`,
+          email: owner.email,
           password: owner.password,
           role: 'owner' as const,
           createdAt: new Date().toISOString(),
@@ -79,120 +124,128 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }))
       ];
       localStorage.setItem('botforge_users', JSON.stringify(initialUsers));
-    } else {
-      // Add root account if it doesn't exist
-      const rootExists = users.find((u: any) => u.username === 'root');
-      if (!rootExists) {
-        users.unshift({
-          id: 'root-0',
-          username: rootAccount.username,
-          email: 'root@botforge.com',
-          password: rootAccount.password,
-          role: 'root' as const,
-          createdAt: new Date().toISOString(),
-          discordId: 'root_discord_id'
-        });
-        localStorage.setItem('botforge_users', JSON.stringify(users));
-      }
     }
 
-    // Initialize action logs if not exists
+    // Initialize action logs
     const logs = localStorage.getItem('botforge_action_logs');
     if (!logs) {
       localStorage.setItem('botforge_action_logs', JSON.stringify([]));
     }
-  }, []);
+  };
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const foundUser = users.find((u: any) => u.username === username && u.password === password);
-    
-    if (foundUser && !foundUser.banned) {
-      // Try to get avatar from Supabase, but don't fail if it doesn't work
-      try {
-        const { data: dbUser } = await supabase
-          .from('users')
-          .select('avatar_url')
-          .eq('email', foundUser.email)
-          .maybeSingle();
-        
-        if (dbUser?.avatar_url) {
-          foundUser.avatar_url = dbUser.avatar_url;
+    try {
+      // First try to find user in database by username
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', username)
+        .maybeSingle();
+
+      let email = username;
+      if (userData && !userError) {
+        email = userData.email;
+      } else if (username.includes('@')) {
+        email = username;
+      } else {
+        // Fallback to localStorage for special accounts
+        const localUsers = JSON.parse(localStorage.getItem('botforge_users') || '[]');
+        const localUser = localUsers.find((u: any) => u.username === username && u.password === password);
+        if (localUser) {
+          email = localUser.email;
         }
-      } catch (error) {
-        console.log('Could not fetch avatar from database:', error);
-        // Continue without avatar - this is fine
       }
 
-      const userWithoutPassword = { ...foundUser };
-      delete userWithoutPassword.password;
-      setUser(userWithoutPassword);
-      localStorage.setItem('botforge_user', JSON.stringify(userWithoutPassword));
-      return true;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('Login error:', error);
+        return false;
+      }
+
+      return !!data.user;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
   const register = async (username: string, email: string, password: string, discordId: string): Promise<boolean> => {
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    
-    if (users.find((u: any) => u.username === username || u.email === email)) {
-      return false;
-    }
-
-    // Discord ID is now required
     if (!discordId || discordId.trim() === '') {
       return false;
     }
 
-    const newUser = {
-      id: Date.now().toString(),
-      username,
-      email,
-      password,
-      role: 'user' as const,
-      createdAt: new Date().toISOString(),
-      discordId: discordId.trim()
-    };
+    try {
+      // First, sign up the user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
 
-    users.push(newUser);
-    localStorage.setItem('botforge_users', JSON.stringify(users));
-    
-    const userWithoutPassword = { ...newUser };
-    delete userWithoutPassword.password;
-    setUser(userWithoutPassword);
-    localStorage.setItem('botforge_user', JSON.stringify(userWithoutPassword));
-    
-    logAction(`New user registered: ${username}`, 'System');
-    return true;
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('botforge_user');
-  };
-
-
-  const updateUserRole = (userId: string, newRole: string) => {
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === userId);
-    
-    if (userIndex !== -1) {
-      // Prevent changing root role or owners changing each other
-      if (users[userIndex].role === 'root') return;
-      if (user?.role === 'owner' && users[userIndex].role === 'owner' && users[userIndex].id !== user.id) return;
-      
-      const oldRole = users[userIndex].role;
-      users[userIndex].role = newRole;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-      
-      logAction(`Role changed for ${users[userIndex].username}: ${oldRole} → ${newRole}`, user?.username || 'Unknown');
-      
-      if (user && user.id === userId) {
-        const updatedUser = { ...user, role: newRole as any };
-        setUser(updatedUser);
-        localStorage.setItem('botforge_user', JSON.stringify(updatedUser));
+      if (error) {
+        console.error('Registration error:', error);
+        return false;
       }
+
+      if (data.user) {
+        // Create user record in our custom users table
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            username,
+            email,
+            role: 'user'
+          });
+
+        if (insertError) {
+          console.error('Error creating user record:', insertError);
+          return false;
+        }
+
+        logAction(`New user registered: ${username}`, 'System');
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Registration error:', error);
+      return false;
+    }
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+  };
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating user role:', error);
+        return;
+      }
+
+      logAction(`Role changed for user ${userId}: → ${newRole}`, user?.username || 'Unknown');
+      
+      // Update local state if it's the current user
+      if (user && user.id === userId) {
+        setUser({ ...user, role: newRole as any });
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error);
     }
   };
 
@@ -202,134 +255,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase
         .from('users')
-        .upsert({ 
-          email: user.email,
-          username: user.username,
-          role: user.role,
-          avatar_url: avatarUrl 
-        }, { 
-          onConflict: 'email' 
-        });
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id);
 
       if (error) {
-        console.error('Error updating avatar url:', error);
+        console.error('Error updating avatar:', error);
         return;
       }
-    } catch (error) {
-      console.log('Could not update avatar in database:', error);
-      // Continue with local update
-    }
-    
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
 
-    if (userIndex !== -1) {
-      users[userIndex].avatar_url = avatarUrl;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-
-      const updatedUser = { ...user, avatar_url: avatarUrl };
-      setUser(updatedUser);
-      localStorage.setItem('botforge_user', JSON.stringify(updatedUser));
-      
+      setUser({ ...user, avatar_url: avatarUrl });
       logAction(`Avatar updated for ${user.username}`, user.username);
+    } catch (error) {
+      console.error('Error updating avatar:', error);
     }
   };
 
   const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
-    if (!user) return false;
-    
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
-    
-    if (userIndex !== -1 && users[userIndex].password === currentPassword) {
-      // Root password cannot be changed
-      if (users[userIndex].role === 'root') return false;
-      
-      users[userIndex].password = newPassword;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-      logAction(`Password changed for ${user.username}`, user.username);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        console.error('Error changing password:', error);
+        return false;
+      }
+
+      logAction(`Password changed for ${user?.username}`, user?.username || 'Unknown');
       return true;
-    }
-    return false;
-  };
-
-  const adminChangePassword = (userId: string, newPassword: string) => {
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === userId);
-    
-    if (userIndex !== -1) {
-      // Root password cannot be changed
-      if (users[userIndex].role === 'root') return;
-      
-      users[userIndex].password = newPassword;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-      logAction(`Password reset for ${users[userIndex].username}`, user?.username || 'Admin');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      return false;
     }
   };
 
-  const adminChangeUserInfo = (userId: string, username: string, email: string) => {
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === userId);
-    
-    if (userIndex !== -1) {
-      // Root info cannot be changed
-      if (users[userIndex].role === 'root') return;
-      
-      const oldUsername = users[userIndex].username;
-      users[userIndex].username = username;
-      users[userIndex].email = email;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-      
-      logAction(`User info changed for ${oldUsername} → ${username}`, user?.username || 'Admin');
+  const adminChangePassword = async (userId: string, newPassword: string) => {
+    // This would require admin privileges - not directly possible with Supabase client
+    // Would need to implement via Edge Function with service role key
+    console.log('Admin password change not implemented for Supabase');
+  };
+
+  const adminChangeUserInfo = async (userId: string, username: string, email: string) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ username, email })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating user info:', error);
+        return;
+      }
+
+      logAction(`User info changed for ${userId} → ${username}`, user?.username || 'Admin');
       
       if (user && user.id === userId) {
-        const updatedUser = { ...user, username, email };
-        setUser(updatedUser);
-        localStorage.setItem('botforge_user', JSON.stringify(updatedUser));
+        setUser({ ...user, username, email });
       }
+    } catch (error) {
+      console.error('Error updating user info:', error);
     }
   };
 
-  const banUser = (userId: string) => {
+  const banUser = async (userId: string) => {
+    // This would require custom implementation
+    console.log('Ban user not implemented for Supabase');
+  };
+
+  const unbanUser = async (userId: string) => {
+    // This would require custom implementation
+    console.log('Unban user not implemented for Supabase');
+  };
+
+  const deleteUser = async (userId: string) => {
     if (user?.role !== 'root') return;
     
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === userId);
-    
-    if (userIndex !== -1 && users[userIndex].role !== 'root') {
-      users[userIndex].banned = true;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-      logAction(`User banned: ${users[userIndex].username}`, user.username);
-    }
-  };
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
 
-  const unbanUser = (userId: string) => {
-    if (user?.role !== 'root' && user?.role !== 'owner') return;
-    
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === userId);
-    
-    if (userIndex !== -1 && users[userIndex].role !== 'root') {
-      users[userIndex].banned = false;
-      localStorage.setItem('botforge_users', JSON.stringify(users));
-      logAction(`User unbanned: ${users[userIndex].username}`, user?.username || 'Admin');
-    }
-  };
+      if (error) {
+        console.error('Error deleting user:', error);
+        return;
+      }
 
-  const deleteUser = (userId: string) => {
-    if (user?.role !== 'root') return;
-    
-    const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');
-    const userToDelete = users.find((u: any) => u.id === userId);
-    const filteredUsers = users.filter((u: any) => u.id !== userId || u.role === 'root');
-    localStorage.setItem('botforge_users', JSON.stringify(filteredUsers));
-    
-    if (userToDelete) {
-      logAction(`User deleted: ${userToDelete.username}`, user.username);
+      logAction(`User deleted: ${userId}`, user.username);
+    } catch (error) {
+      console.error('Error deleting user:', error);
     }
   };
 
   const getAllUsers = () => {
+    // This is a legacy function - would need to be replaced with proper Supabase query
     return JSON.parse(localStorage.getItem('botforge_users') || '[]');
   };
 
@@ -342,7 +361,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       timestamp: new Date().toISOString()
     };
     logs.unshift(newLog);
-    // Keep only last 100 logs
     if (logs.length > 100) {
       logs.splice(100);
     }
@@ -353,10 +371,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return JSON.parse(localStorage.getItem('botforge_action_logs') || '[]');
   };
 
-
   return (
     <AuthContext.Provider value={{ 
       user, 
+      session,
       login, 
       register, 
       logout, 
