@@ -3,6 +3,19 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+// Test semplice: ottieni tutte le righe da una tabella
+async function fetchData() {
+  const { data, error } = await supabase.from('botforge db').select('*')
+  console.log(data, error)
+}
+
+fetchData()
 
 export default tseslint.config(
   { ignores: ["dist"] },
