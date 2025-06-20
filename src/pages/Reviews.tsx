@@ -19,6 +19,7 @@ const Reviews = () => {
 
   const fetchReviews = async () => {
     try {
+      // Try to fetch from Supabase first
       const { data, error } = await supabase
         .from('reviews')
         .select(`
@@ -27,14 +28,17 @@ const Reviews = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setReviews(data || []);
+      if (!error && data) {
+        setReviews(data);
+      } else {
+        throw new Error('Could not fetch from database');
+      }
     } catch (error) {
       console.error('Error fetching reviews:', error);
       // Fallback to localStorage for backwards compatibility
       const storedReviews = JSON.parse(localStorage.getItem('botforge_reviews') || '[]');
       setReviews(storedReviews.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime()
       ));
     } finally {
       setLoading(false);

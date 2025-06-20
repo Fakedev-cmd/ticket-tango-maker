@@ -17,6 +17,7 @@ const Updates = () => {
 
   const fetchUpdates = async () => {
     try {
+      // Try to fetch from Supabase first
       const { data, error } = await supabase
         .from('updates')
         .select(`
@@ -25,14 +26,17 @@ const Updates = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setUpdates(data || []);
+      if (!error && data) {
+        setUpdates(data);
+      } else {
+        throw new Error('Could not fetch from database');
+      }
     } catch (error) {
       console.error('Error fetching updates:', error);
       // Fallback to localStorage for backwards compatibility
       const storedUpdates = JSON.parse(localStorage.getItem('botforge_updates') || '[]');
       setUpdates(storedUpdates.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime()
       ));
     } finally {
       setLoading(false);

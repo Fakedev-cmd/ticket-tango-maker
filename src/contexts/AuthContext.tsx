@@ -108,14 +108,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const foundUser = users.find((u: any) => u.username === username && u.password === password);
     
     if (foundUser && !foundUser.banned) {
-      const { data: dbUser } = await supabase
-        .from('users')
-        .select('avatar_url')
-        .eq('email', foundUser.email)
-        .single();
-      
-      if (dbUser) {
-        foundUser.avatar_url = dbUser.avatar_url;
+      // Try to get avatar from Supabase, but don't fail if it doesn't work
+      try {
+        const { data: dbUser } = await supabase
+          .from('users')
+          .select('avatar_url')
+          .eq('email', foundUser.email)
+          .maybeSingle();
+        
+        if (dbUser?.avatar_url) {
+          foundUser.avatar_url = dbUser.avatar_url;
+        }
+      } catch (error) {
+        console.log('Could not fetch avatar from database:', error);
+        // Continue without avatar - this is fine
       }
 
       const userWithoutPassword = { ...foundUser };
@@ -193,14 +199,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserAvatar = async (avatarUrl: string) => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('users')
-      .update({ avatar_url: avatarUrl })
-      .eq('email', user.email);
+    try {
+      const { error } = await supabase
+        .from('users')
+        .upsert({ 
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          avatar_url: avatarUrl 
+        }, { 
+          onConflict: 'email' 
+        });
 
-    if (error) {
-      console.error('Error updating avatar url:', error);
-      return;
+      if (error) {
+        console.error('Error updating avatar url:', error);
+        return;
+      }
+    } catch (error) {
+      console.log('Could not update avatar in database:', error);
+      // Continue with local update
     }
     
     const users = JSON.parse(localStorage.getItem('botforge_users') || '[]');

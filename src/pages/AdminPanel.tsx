@@ -14,7 +14,6 @@ import TermsEditor from '@/components/TermsEditor';
 import AccessControl from '@/components/AccessControl';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
 import ActionLog from '@/components/ActionLog';
-import TicketManager from '@/components/TicketManager';
 import EmailComposer from '@/components/EmailComposer';
 
 const AdminPanel = () => {
@@ -72,13 +71,13 @@ const AdminPanel = () => {
 
   const tabsConfig = () => {
     if (user.role === 'root') {
-      return ["products", "pending-orders", "orders", "users", "reviews", "updates", "tickets", "emails", "discord", "tos", "qr-generator", "action-log", "root-panel"];
+      return ["products", "pending-orders", "orders", "users", "reviews", "updates", "emails", "discord", "tos", "qr-generator", "action-log", "root-panel"];
     } else if (user.role === 'owner') {
-      return ["products", "pending-orders", "orders", "users", "reviews", "updates", "tickets", "emails", "discord", "tos", "qr-generator"];
+      return ["products", "pending-orders", "orders", "users", "reviews", "updates", "emails", "discord", "tos", "qr-generator"];
     } else if (user.role === 'manager') {
-      return ["products", "orders", "users", "reviews", "tickets", "emails", "qr-generator"];
+      return ["products", "orders", "users", "reviews", "emails", "qr-generator"];
     } else if (user.role === 'developer') {
-      return ["orders", "updates", "tickets"];
+      return ["orders", "updates"];
     }
     return [];
   };
@@ -101,21 +100,20 @@ const AdminPanel = () => {
             </h1>
             <p className="text-blue-300 text-xl max-w-2xl mx-auto">
               {isRoot ? 'Full system control and management' : 
-               isOwner ? 'Manage products, orders, users, reviews, tickets, emails, and updates' : 
-               isManager ? 'Manage products, orders, users, reviews, tickets, and emails' :
-               'Manage orders, updates, and tickets'}
+               isOwner ? 'Manage products, orders, users, reviews, and updates' : 
+               isManager ? 'Manage products, orders, users, and reviews' :
+               'Manage orders and updates'}
             </p>
           </div>
 
           <Tabs defaultValue={tabs[0]} className="space-y-8">
-            <TabsList className="grid w-full grid-cols-12 bg-gray-800/50 backdrop-blur-sm border border-blue-500/20 shadow-xl p-1">
+            <TabsList className="grid w-full grid-cols-11 bg-gray-800/50 backdrop-blur-sm border border-blue-500/20 shadow-xl p-1">
               {tabs.includes("products") && <TabsTrigger value="products" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Products</TabsTrigger>}
               {tabs.includes("pending-orders") && <TabsTrigger value="pending-orders" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Pending</TabsTrigger>}
               {tabs.includes("orders") && <TabsTrigger value="orders" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Orders</TabsTrigger>}
               {tabs.includes("users") && <TabsTrigger value="users" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Users</TabsTrigger>}
               {tabs.includes("reviews") && <TabsTrigger value="reviews" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Reviews</TabsTrigger>}
               {tabs.includes("updates") && <TabsTrigger value="updates" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Updates</TabsTrigger>}
-              {tabs.includes("tickets") && <TabsTrigger value="tickets" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Tickets</TabsTrigger>}
               {tabs.includes("emails") && <TabsTrigger value="emails" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Emails</TabsTrigger>}
               {tabs.includes("discord") && <TabsTrigger value="discord" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Discord</TabsTrigger>}
               {tabs.includes("tos") && <TabsTrigger value="tos" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">ToS</TabsTrigger>}
@@ -187,12 +185,6 @@ const AdminPanel = () => {
                   setUpdates={setUpdates} 
                   userRole={user.role}
                 />
-              </TabsContent>
-            )}
-
-            {tabs.includes("tickets") && (
-              <TabsContent value="tickets">
-                <TicketManager />
               </TabsContent>
             )}
 

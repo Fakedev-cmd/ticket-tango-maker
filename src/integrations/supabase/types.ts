@@ -51,6 +51,44 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          comment: string
+          created_at: string | null
+          id: string
+          product_name: string | null
+          rating: number
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          comment: string
+          created_at?: string | null
+          id?: string
+          product_name?: string | null
+          rating: number
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          comment?: string
+          created_at?: string | null
+          id?: string
+          product_name?: string | null
+          rating?: number
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_replies: {
         Row: {
           created_at: string | null
@@ -160,8 +198,41 @@ export type Database = {
           },
         ]
       }
+      updates: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "updates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           email: string
           id: string
@@ -170,6 +241,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           email: string
           id?: string
@@ -178,6 +250,7 @@ export type Database = {
           username: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           email?: string
           id?: string
