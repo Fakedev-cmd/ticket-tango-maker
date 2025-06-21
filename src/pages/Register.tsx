@@ -31,8 +31,8 @@ const Register = () => {
     
     if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword || !formData.discordId) {
       toast({
-        title: t('register.missing'),
-        description: t('register.missingDesc'),
+        title: "Missing Information",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
@@ -40,8 +40,8 @@ const Register = () => {
 
     if (formData.password !== formData.confirmPassword) {
       toast({
-        title: t('register.mismatch'),
-        description: t('register.mismatchDesc'),
+        title: "Password Mismatch",
+        description: "Passwords do not match",
         variant: "destructive",
       });
       return;
@@ -49,8 +49,8 @@ const Register = () => {
 
     if (formData.password.length < 6) {
       toast({
-        title: t('register.short'),
-        description: t('register.shortDesc'),
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
         variant: "destructive",
       });
       return;
@@ -59,25 +59,26 @@ const Register = () => {
     setIsLoading(true);
     
     try {
+      console.log('Registration attempt for:', formData.email, formData.username);
       const success = await register(formData.username, formData.email, formData.password, formData.discordId);
       
       if (success) {
         toast({
           title: "Registration Successful",
-          description: "Your account has been created and saved to the database. Please check your email to verify your account.",
+          description: "Your account has been created successfully. Please check your email to verify your account, then you can log in.",
         });
-        navigate('/');
+        navigate('/login');
       } else {
         toast({
-          title: t('register.failed'),
-          description: "Failed to create account. Please try again.",
+          title: "Registration Failed",
+          description: "Failed to create account. Please try again with different credentials.",
           variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Registration error:', error);
       toast({
-        title: t('register.failed'),
+        title: "Registration Failed",
         description: "An error occurred during registration. Please try again.",
         variant: "destructive",
       });
@@ -90,22 +91,22 @@ const Register = () => {
     <div className="min-h-screen bg-gray-900 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2">{t('register.title')}</h2>
-          <p className="text-gray-400 text-sm sm:text-base">{t('register.subtitle')}</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2">Create Account</h2>
+          <p className="text-gray-400 text-sm sm:text-base">Join BotForge today</p>
         </div>
 
         <Card className="bg-gray-800 border-gray-700">
           <CardHeader>
             <CardTitle className="text-white text-center flex items-center justify-center text-lg sm:text-xl">
               <UserPlus className="mr-2 h-5 w-5" />
-              {t('register.create')}
+              Create Your Account
             </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  {t('register.username')} *
+                  Username *
                 </label>
                 <Input
                   type="text"
@@ -113,14 +114,14 @@ const Register = () => {
                   value={formData.username}
                   onChange={handleChange}
                   className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  placeholder={t('register.username')}
+                  placeholder="Choose a username"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  {t('register.email')} *
+                  Email *
                 </label>
                 <Input
                   type="email"
@@ -128,14 +129,14 @@ const Register = () => {
                   value={formData.email}
                   onChange={handleChange}
                   className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  placeholder={t('register.email')}
+                  placeholder="Enter your email"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  {t('register.discord')} *
+                  Discord ID *
                 </label>
                 <Input
                   type="text"
@@ -143,15 +144,15 @@ const Register = () => {
                   value={formData.discordId}
                   onChange={handleChange}
                   className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  placeholder={t('register.discord')}
+                  placeholder="Your Discord ID"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">{t('register.discordDesc')}</p>
+                <p className="text-xs text-gray-500 mt-1">Enter your Discord username or ID</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  {t('register.password')} *
+                  Password *
                 </label>
                 <Input
                   type="password"
@@ -159,14 +160,14 @@ const Register = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  placeholder={t('register.password')}
+                  placeholder="Create a password"
                   required
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  {t('register.confirm')} *
+                  Confirm Password *
                 </label>
                 <Input
                   type="password"
@@ -174,7 +175,7 @@ const Register = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                  placeholder={t('register.confirm')}
+                  placeholder="Confirm your password"
                   required
                 />
               </div>
@@ -184,15 +185,15 @@ const Register = () => {
                 disabled={isLoading}
                 className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-3"
               >
-                {isLoading ? t('register.creating') : t('register.create')}
+                {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
               <p className="text-gray-400 text-sm">
-                {t('register.hasAccount')}{' '}
+                Already have an account?{' '}
                 <Link to="/login" className="text-cyan-400 hover:text-cyan-300 font-medium">
-                  {t('register.signin')}
+                  Sign in
                 </Link>
               </p>
             </div>

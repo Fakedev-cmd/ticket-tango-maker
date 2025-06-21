@@ -35,51 +35,69 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
+// Add cleanup function for auth state
+const cleanupAuthState = () => {
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = React.useState<User | null>(null);
   const [session, setSession] = React.useState<Session | null>(null);
 
   React.useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile from database
-          try {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('*')
-              .eq('email', session.user.email)
-              .single();
-            
-            if (profile) {
-              const userData: User = {
-                id: profile.id,
-                username: profile.username,
-                email: profile.email,
-                role: profile.role as any,
-                createdAt: profile.created_at,
-                discordId: session.user.user_metadata?.discord_id,
-                avatar_url: profile.avatar_url
-              };
-              setUser(userData);
+          // Defer user profile fetching to prevent deadlocks
+          setTimeout(async () => {
+            try {
+              const { data: profile } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', session.user.email)
+                .single();
+              
+              if (profile) {
+                const userData: User = {
+                  id: profile.id,
+                  username: profile.username,
+                  email: profile.email,
+                  role: profile.role as any,
+                  createdAt: profile.created_at,
+                  discordId: session.user.user_metadata?.discord_id,
+                  avatar_url: profile.avatar_url
+                };
+                setUser(userData);
+                console.log('User profile loaded:', userData);
+              }
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+              setUser(null);
             }
-          } catch (error) {
-            console.error('Error fetching user profile:', error);
-          }
+          }, 0);
         } else {
           setUser(null);
         }
       }
     );
 
-    // Check for existing session
+    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        // This will trigger the auth state change listener above
+      if (session) {
+        console.log('Existing session found:', session.user?.email);
       }
     });
 
@@ -88,21 +106,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Attempting login for:', email);
+      
+      // Clean up any existing auth state
+      cleanupAuthState();
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Sign out before login (expected):', err);
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
+
+      console.log('Login successful:', data.user?.email);
       return true;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Login failed:', error);
       return false;
     }
   };
 
   const register = async (username: string, email: string, password: string, discordId: string): Promise<boolean> => {
     try {
+      console.log('Attempting registration for:', email, username);
+      
+      // Clean up any existing auth state
+      cleanupAuthState();
+      
       // Sign up with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -116,9 +156,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        throw error;
+      }
 
       if (data.user) {
+        console.log('User created:', data.user.email);
+        
         // Create user profile in the users table
         const { error: profileError } = await supabase
           .from('users')
@@ -126,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: data.user.id,
             username,
             email,
-            role: 'user'
+            role: 'customer'
           });
 
         if (profileError) {
@@ -134,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
         }
 
+        console.log('User profile created successfully');
         return true;
       }
       return false;
@@ -145,9 +191,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      console.log('Logging out...');
+      cleanupAuthState();
+      
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.log('Logout error (ignoring):', err);
+      }
+      
       setUser(null);
       setSession(null);
+      
+      // Force page reload for clean state
+      window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
     }
