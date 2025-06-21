@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
@@ -17,7 +16,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (usernameOrEmail: string, password: string) => Promise<boolean>;
   register: (username: string, email: string, password: string, discordId: string) => Promise<boolean>;
   logout: () => void;
   updateUserRole: (userId: string, newRole: string) => void;
@@ -104,9 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (usernameOrEmail: string, password: string): Promise<boolean> => {
     try {
-      console.log('Attempting login for:', email);
+      console.log('Attempting login for:', usernameOrEmail);
       
       // Clean up any existing auth state
       cleanupAuthState();
@@ -116,6 +115,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.auth.signOut({ scope: 'global' });
       } catch (err) {
         console.log('Sign out before login (expected):', err);
+      }
+
+      let email = usernameOrEmail;
+
+      // Check if input is username (doesn't contain @)
+      if (!usernameOrEmail.includes('@')) {
+        console.log('Looking up email for username:', usernameOrEmail);
+        try {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('email')
+            .eq('username', usernameOrEmail)
+            .single();
+
+          if (userError || !userData) {
+            console.error('Username not found:', userError);
+            return false;
+          }
+
+          email = userData.email;
+          console.log('Found email for username:', email);
+        } catch (error) {
+          console.error('Error looking up username:', error);
+          return false;
+        }
       }
 
       const { data, error } = await supabase.auth.signInWithPassword({
