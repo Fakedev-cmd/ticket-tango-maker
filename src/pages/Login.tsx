@@ -19,6 +19,7 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!usernameOrEmail || !password) {
       toast({
         title: "Missing Information",
@@ -30,9 +31,11 @@ const Login = () => {
 
     setIsLoading(true);
     try {
-      console.log('Login attempt for:', usernameOrEmail);
+      console.log('Starting login process for:', usernameOrEmail);
       const success = await login(usernameOrEmail, password);
+      
       if (success) {
+        console.log('Login successful, redirecting...');
         toast({
           title: "Login Successful",
           description: "Welcome back!",
@@ -40,6 +43,7 @@ const Login = () => {
         // Force page reload to ensure clean state
         window.location.href = '/';
       } else {
+        console.log('Login failed');
         toast({
           title: "Login Failed",
           description: "Invalid username/email or password. Please check your credentials and try again.",

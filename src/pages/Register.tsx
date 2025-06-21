@@ -59,16 +59,18 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      console.log('Registration attempt for:', formData.email, formData.username);
+      console.log('Starting registration for:', formData.email, formData.username);
       const success = await register(formData.username, formData.email, formData.password, formData.discordId);
       
       if (success) {
+        console.log('Registration successful');
         toast({
           title: "Registration Successful",
           description: "Your account has been created successfully. Please check your email to verify your account, then you can log in.",
         });
         navigate('/login');
       } else {
+        console.log('Registration failed');
         toast({
           title: "Registration Failed",
           description: "Failed to create account. Please try again with different credentials.",
