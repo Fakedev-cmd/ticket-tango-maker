@@ -1,236 +1,144 @@
-
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ProductManager from '@/components/ProductManager';
-import OrderManager from '@/components/OrderManager';
+import { Badge } from '@/components/ui/badge';
+import { Shield, Users, Package, MessageSquare, FileText, Settings, Activity, Mail, Terminal, UserCheck, Eye } from 'lucide-react';
 import UserManager from '@/components/UserManager';
+import ProductManager from '@/components/ProductManager';
 import ReviewManager from '@/components/ReviewManager';
 import UpdateManager from '@/components/UpdateManager';
-import DiscordManager from '@/components/DiscordManager';
-import RootPanel from '@/components/RootPanel';
-import TermsEditor from '@/components/TermsEditor';
-import AccessControl from '@/components/AccessControl';
-import QRCodeGenerator from '@/components/QRCodeGenerator';
+import OrderManager from '@/components/OrderManager';
 import ActionLog from '@/components/ActionLog';
 import EmailComposer from '@/components/EmailComposer';
+import RootPanel from '@/components/RootPanel';
+import AccessControl from '@/components/AccessControl';
+import ToSHistoryManager from '@/components/ToSHistoryManager';
 
 const AdminPanel = () => {
-  const { user, updateUserRole, adminChangePassword, adminChangeUserInfo, banUser, deleteUser, getAllUsers } = useAuth();
-  const navigate = useNavigate();
-  
-  // Access control
-  const [isAccessGranted, setIsAccessGranted] = useState(false);
-  
-  // State variables
-  const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [updates, setUpdates] = useState([]);
+  const { user } = useAuth();
+  const { t } = useTranslation();
 
-  useEffect(() => {
-    if (!user || (user.role !== 'owner' && user.role !== 'developer' && user.role !== 'manager' && user.role !== 'root')) {
-      navigate('/');
-      return;
-    }
-
-    // Load data
-    const storedProducts = JSON.parse(localStorage.getItem('botforge_products') || '[]');
-    const storedOrders = JSON.parse(localStorage.getItem('botforge_orders') || '[]');
-    const storedUsers = getAllUsers();
-    const storedReviews = JSON.parse(localStorage.getItem('botforge_reviews') || '[]');
-    const storedUpdates = JSON.parse(localStorage.getItem('botforge_updates') || '[]');
-    
-    setProducts(storedProducts);
-    setOrders(storedOrders.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    ));
-    setUsers(storedUsers);
-    setReviews(storedReviews.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    ));
-    setUpdates(storedUpdates.sort((a, b) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    ));
-  }, [user, navigate, getAllUsers]);
-
-  if (!user || (user.role !== 'owner' && user.role !== 'developer' && user.role !== 'manager' && user.role !== 'root')) {
-    return null;
+  if (!user || !['manager', 'developer', 'owner', 'root'].includes(user.role)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-cyan-900 flex items-center justify-center">
+        <Card className="bg-gray-800/50 backdrop-blur-sm border-red-500/20 shadow-xl">
+          <CardContent className="p-8 text-center">
+            <Shield className="h-16 w-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">{t('admin.accessDenied')}</h2>
+            <p className="text-red-300">{t('admin.accessDeniedDesc')}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  if (!isAccessGranted) {
-    return <AccessControl onAccessGranted={() => setIsAccessGranted(true)} />;
-  }
-
-  const isOwner = user.role === 'owner';
-  const isRoot = user.role === 'root';
-  const isDeveloper = user.role === 'developer';
-  const isManager = user.role === 'manager';
-
-  const tabsConfig = () => {
-    if (user.role === 'root') {
-      return ["products", "pending-orders", "orders", "users", "reviews", "updates", "emails", "discord", "tos", "qr-generator", "action-log", "root-panel"];
-    } else if (user.role === 'owner') {
-      return ["products", "pending-orders", "orders", "users", "reviews", "updates", "emails", "discord", "tos", "qr-generator"];
-    } else if (user.role === 'manager') {
-      return ["products", "orders", "users", "reviews", "emails", "qr-generator"];
-    } else if (user.role === 'developer') {
-      return ["orders", "updates"];
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'root': return 'bg-red-600';
+      case 'owner': return 'bg-blue-500';
+      case 'manager': return 'bg-purple-600';
+      case 'developer': return 'bg-orange-500';
+      default: return 'bg-gray-500';
     }
-    return [];
   };
 
-  const tabs = tabsConfig();
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      {/* Background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse delay-700"></div>
-      </div>
-
-      <div className="relative z-10 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-12 text-center">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent mb-4">
-              {isRoot ? 'Root Panel' : isOwner ? 'Admin Panel' : isManager ? 'Manager Panel' : 'Developer Panel'}
-            </h1>
-            <p className="text-blue-300 text-xl max-w-2xl mx-auto">
-              {isRoot ? 'Full system control and management' : 
-               isOwner ? 'Manage products, orders, users, reviews, and updates' : 
-               isManager ? 'Manage products, orders, users, and reviews' :
-               'Manage orders and updates'}
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-cyan-900 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">{t('admin.title')}</h1>
+              <p className="text-blue-300 text-lg">{t('admin.subtitle')}</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Badge className={`${getRoleColor(user.role)} text-white px-4 py-2 text-sm font-medium`}>
+                {user.role.toUpperCase()}
+              </Badge>
+              <div className="text-right">
+                <p className="text-white font-medium">{user.username}</p>
+                <p className="text-blue-300 text-sm">{user.email}</p>
+              </div>
+            </div>
           </div>
-
-          <Tabs defaultValue={tabs[0]} className="space-y-8">
-            <TabsList className="grid w-full grid-cols-11 bg-gray-800/50 backdrop-blur-sm border border-blue-500/20 shadow-xl p-1">
-              {tabs.includes("products") && <TabsTrigger value="products" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Products</TabsTrigger>}
-              {tabs.includes("pending-orders") && <TabsTrigger value="pending-orders" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Pending</TabsTrigger>}
-              {tabs.includes("orders") && <TabsTrigger value="orders" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Orders</TabsTrigger>}
-              {tabs.includes("users") && <TabsTrigger value="users" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Users</TabsTrigger>}
-              {tabs.includes("reviews") && <TabsTrigger value="reviews" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Reviews</TabsTrigger>}
-              {tabs.includes("updates") && <TabsTrigger value="updates" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Updates</TabsTrigger>}
-              {tabs.includes("emails") && <TabsTrigger value="emails" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Emails</TabsTrigger>}
-              {tabs.includes("discord") && <TabsTrigger value="discord" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Discord</TabsTrigger>}
-              {tabs.includes("tos") && <TabsTrigger value="tos" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">ToS</TabsTrigger>}
-              {tabs.includes("qr-generator") && <TabsTrigger value="qr-generator" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">QR</TabsTrigger>}
-              {tabs.includes("action-log") && <TabsTrigger value="action-log" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Logs</TabsTrigger>}
-              {tabs.includes("root-panel") && <TabsTrigger value="root-panel" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Root</TabsTrigger>}
-            </TabsList>
-
-            {tabs.includes("products") && (
-              <TabsContent value="products">
-                <ProductManager 
-                  products={products} 
-                  setProducts={setProducts} 
-                  userRole={user.role}
-                />
-              </TabsContent>
-            )}
-
-            {tabs.includes("pending-orders") && (
-              <TabsContent value="pending-orders">
-                <OrderManager 
-                  orders={orders} 
-                  setOrders={setOrders} 
-                  user={user}
-                  showPending={true}
-                />
-              </TabsContent>
-            )}
-
-            {tabs.includes("orders") && (
-              <TabsContent value="orders">
-                <OrderManager 
-                  orders={orders} 
-                  setOrders={setOrders} 
-                  user={user}
-                  showPending={false}
-                />
-              </TabsContent>
-            )}
-
-            {tabs.includes("users") && (
-              <TabsContent value="users">
-                <UserManager 
-                  users={users}
-                  setUsers={setUsers}
-                  user={user}
-                  updateUserRole={updateUserRole}
-                  adminChangeUserInfo={adminChangeUserInfo}
-                  adminChangePassword={adminChangePassword}
-                  getAllUsers={getAllUsers}
-                />
-              </TabsContent>
-            )}
-
-            {tabs.includes("reviews") && (
-              <TabsContent value="reviews">
-                <ReviewManager 
-                  reviews={reviews} 
-                  setReviews={setReviews} 
-                  userRole={user.role}
-                />
-              </TabsContent>
-            )}
-
-            {tabs.includes("updates") && (
-              <TabsContent value="updates">
-                <UpdateManager 
-                  updates={updates} 
-                  setUpdates={setUpdates} 
-                  userRole={user.role}
-                />
-              </TabsContent>
-            )}
-
-            {tabs.includes("emails") && (
-              <TabsContent value="emails">
-                <EmailComposer />
-              </TabsContent>
-            )}
-
-            {tabs.includes("discord") && (
-              <TabsContent value="discord">
-                <DiscordManager />
-              </TabsContent>
-            )}
-
-            {tabs.includes("tos") && (
-              <TabsContent value="tos">
-                <TermsEditor />
-              </TabsContent>
-            )}
-
-            {tabs.includes("qr-generator") && (
-              <TabsContent value="qr-generator">
-                <QRCodeGenerator />
-              </TabsContent>
-            )}
-
-            {tabs.includes("action-log") && user.role === 'root' && (
-              <TabsContent value="action-log">
-                <ActionLog />
-              </TabsContent>
-            )}
-
-            {tabs.includes("root-panel") && user.role === 'root' && (
-              <TabsContent value="root-panel">
-                <RootPanel 
-                  users={users}
-                  setUsers={setUsers}
-                  banUser={banUser}
-                  deleteUser={deleteUser}
-                  getAllUsers={getAllUsers}
-                />
-              </TabsContent>
-            )}
-          </Tabs>
         </div>
+
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 bg-gray-800/50 backdrop-blur-sm border border-blue-500/20 mb-8">
+            <TabsTrigger value="users" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Users className="h-4 w-4 mr-2" />
+              {t('admin.users')}
+            </TabsTrigger>
+            <TabsTrigger value="products" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Package className="h-4 w-4 mr-2" />
+              {t('admin.products')}
+            </TabsTrigger>
+            <TabsTrigger value="reviews" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              {t('admin.reviews')}
+            </TabsTrigger>
+            <TabsTrigger value="updates" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <FileText className="h-4 w-4 mr-2" />
+              {t('admin.updates')}
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Settings className="h-4 w-4 mr-2" />
+              {t('admin.orders')}
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Activity className="h-4 w-4 mr-2" />
+              {t('admin.logs')}
+            </TabsTrigger>
+            <TabsTrigger value="email" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+              <Mail className="h-4 w-4 mr-2" />
+              Email
+            </TabsTrigger>
+            {user.role === 'root' && (
+              <TabsTrigger value="root" className="data-[state=active]:bg-red-600 data-[state=active]:text-white">
+                <Terminal className="h-4 w-4 mr-2" />
+                Root
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="users" className="space-y-6">
+            <UserManager />
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-6">
+            <ProductManager />
+          </TabsContent>
+
+          <TabsContent value="reviews" className="space-y-6">
+            <ReviewManager />
+          </TabsContent>
+
+          <TabsContent value="updates" className="space-y-6">
+            <UpdateManager />
+          </TabsContent>
+
+          <TabsContent value="orders" className="space-y-6">
+            <OrderManager />
+          </TabsContent>
+
+          <TabsContent value="logs" className="space-y-6">
+            <ActionLog />
+          </TabsContent>
+
+          <TabsContent value="email" className="space-y-6">
+            <EmailComposer />
+          </TabsContent>
+
+          {user.role === 'root' && (
+            <TabsContent value="root" className="space-y-6">
+              <RootPanel />
+              <AccessControl />
+              <ToSHistoryManager />
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
     </div>
   );

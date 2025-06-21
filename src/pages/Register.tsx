@@ -58,23 +58,32 @@ const Register = () => {
 
     setIsLoading(true);
     
-    const success = await register(formData.username, formData.email, formData.password, formData.discordId);
-    
-    if (success) {
-      toast({
-        title: t('register.success'),
-        description: t('register.successDesc'),
-      });
-      navigate('/');
-    } else {
+    try {
+      const success = await register(formData.username, formData.email, formData.password, formData.discordId);
+      
+      if (success) {
+        toast({
+          title: "Registration Successful",
+          description: "Your account has been created and saved to the database. Please check your email to verify your account.",
+        });
+        navigate('/');
+      } else {
+        toast({
+          title: t('register.failed'),
+          description: "Failed to create account. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
       toast({
         title: t('register.failed'),
-        description: t('register.failedDesc'),
+        description: "An error occurred during registration. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
