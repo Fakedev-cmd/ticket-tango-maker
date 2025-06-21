@@ -1,5 +1,7 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUsers } from '@/hooks/useUsers';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,8 +19,39 @@ import AccessControl from '@/components/AccessControl';
 import ToSHistoryManager from '@/components/ToSHistoryManager';
 
 const AdminPanel = () => {
-  const { user } = useAuth();
+  const { user, banUser, unbanUser, deleteUser, getAllUsers } = useAuth();
+  const { users, setUsers } = useUsers();
   const { t } = useTranslation();
+  
+  // State for managing different data types
+  const [products, setProducts] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [updates, setUpdates] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [hasAccess, setHasAccess] = useState(false);
+
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    const storedProducts = localStorage.getItem('botforge_products');
+    if (storedProducts) {
+      setProducts(JSON.parse(storedProducts));
+    }
+
+    const storedReviews = localStorage.getItem('botforge_reviews');
+    if (storedReviews) {
+      setReviews(JSON.parse(storedReviews));
+    }
+
+    const storedUpdates = localStorage.getItem('botforge_updates');
+    if (storedUpdates) {
+      setUpdates(JSON.parse(storedUpdates));
+    }
+
+    const storedOrders = localStorage.getItem('botforge_orders');
+    if (storedOrders) {
+      setOrders(JSON.parse(storedOrders));
+    }
+  }, []);
 
   if (!user || !['manager', 'developer', 'owner', 'root'].includes(user.role)) {
     return (
@@ -32,6 +65,11 @@ const AdminPanel = () => {
         </Card>
       </div>
     );
+  }
+
+  // Show access control for root users first
+  if (user.role === 'root' && !hasAccess) {
+    return <AccessControl onAccessGranted={() => setHasAccess(true)} />;
   }
 
   const getRoleColor = (role: string) => {
@@ -108,19 +146,35 @@ const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="products" className="space-y-6">
-            <ProductManager />
+            <ProductManager 
+              products={products}
+              setProducts={setProducts}
+              userRole={user.role}
+            />
           </TabsContent>
 
           <TabsContent value="reviews" className="space-y-6">
-            <ReviewManager />
+            <ReviewManager 
+              reviews={reviews}
+              setReviews={setReviews}
+              userRole={user.role}
+            />
           </TabsContent>
 
           <TabsContent value="updates" className="space-y-6">
-            <UpdateManager />
+            <UpdateManager 
+              updates={updates}
+              setUpdates={setUpdates}
+              userRole={user.role}
+            />
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-6">
-            <OrderManager />
+            <OrderManager 
+              orders={orders}
+              setOrders={setOrders}
+              user={user}
+            />
           </TabsContent>
 
           <TabsContent value="logs" className="space-y-6">
@@ -133,8 +187,13 @@ const AdminPanel = () => {
 
           {user.role === 'root' && (
             <TabsContent value="root" className="space-y-6">
-              <RootPanel />
-              <AccessControl />
+              <RootPanel 
+                users={users}
+                setUsers={setUsers}
+                banUser={banUser}
+                deleteUser={deleteUser}
+                getAllUsers={getAllUsers}
+              />
               <ToSHistoryManager />
             </TabsContent>
           )}
