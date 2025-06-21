@@ -74,6 +74,7 @@ export const useUsers = () => {
 
   return {
     users,
+    setUsers,
     loading,
     fetchUsers,
     updateUserRole,
